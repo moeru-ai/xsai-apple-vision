@@ -58,7 +58,7 @@ const { object } = await generateObject({
 })
 ```
 
-A keyword that the model cannot follow, such as `format` or `minLength`, fails with a 400 response that names it. It is not dropped. A stream with a schema sends the complete value once.
+Nullable fields and unions work. A keyword that the model cannot follow, such as `format` or `minLength`, fails with a 400 response that names it. It is not dropped. A stream with a schema sends the complete value once.
 
 ### Electron
 

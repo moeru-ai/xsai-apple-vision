@@ -204,6 +204,22 @@ struct GenerationSchemaTests {
         }
     }
 
+    @Test(arguments: [
+        #"{"type":"object","properties":{"note":{"anyOf":[{"type":"string"},{"type":"null"}]}},"required":["note"]}"#,
+        #"{"type":"object","properties":{"value":{"anyOf":[{"type":"string"},{"type":"number"}]}},"required":["value"]}"#,
+        #"{"type":"object","properties":{"a":{"anyOf":[{"type":"string"},{"type":"null"}]},"b":{"anyOf":[{"type":"integer"},{"type":"null"}]}},"required":["a","b"]}"#,
+        #"{"type":"object","properties":{"shape":{"anyOf":[{"type":"object","properties":{"r":{"type":"number"}},"required":["r"]},{"type":"object","properties":{"w":{"type":"number"}},"required":["w"]}]}},"required":["shape"]}"#,
+    ])
+    func keepsEachChoiceOfAnAnyOfWithoutATitle(json: String) throws {
+        _ = try generationSchema(fromJSON: json)
+    }
+
+    @Test func rejectsTwoChoicesThatTheSDKMergesByTitle() {
+        #expect(throws: SchemaError.self) {
+            try generationSchema(fromJSON: #"{"type":"object","properties":{"a":{"title":"Choice","anyOf":[{"type":"string"},{"type":"null"}]},"b":{"title":"Choice","anyOf":[{"type":"integer"},{"type":"null"}]}},"required":["a","b"]}"#)
+        }
+    }
+
     @Test func rejectsASchemaThatTheSDKCannotDecode() {
         #expect(throws: SchemaError.self) {
             try generationSchema(fromJSON: schema(#"{"oneOf":[{"type":"string"},{"type":"integer"}]}"#))
