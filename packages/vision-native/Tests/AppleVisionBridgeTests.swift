@@ -164,3 +164,15 @@ struct BuiltInToolsTests {
         #expect(try decode(#"{"ocr":true,"barcode":true}"#) == ["getText", "readBarcodes"])
     }
 }
+
+struct SupportedLanguageTests {
+    @Test func listsMaximalIdentifiersSoChineseScriptsStayApart() {
+        let identifiers = supportedLanguageIdentifiers([
+            Locale.Language(identifier: "zh"),
+            Locale.Language(identifier: "zh-TW"),
+            Locale.Language(identifier: "en"),
+            Locale.Language(identifier: "en-US"),
+        ])
+        #expect(identifiers == ["en-Latn-US", "zh-Hans-CN", "zh-Hant-TW"])
+    }
+}

@@ -37,6 +37,8 @@ Images are base64 data URLs in PNG, JPEG, HEIC, or WebP. The Provider does not d
 
 Call `provider.isAvailable()` to check the model before a request. It returns a reason code when the model cannot answer: `framework-unavailable`, `device-not-eligible`, `apple-intelligence-not-enabled`, or `model-not-ready`.
 
+Call `provider.supportsLanguage('es-MX')` to check a language before a request. `provider.supportedLanguages()` lists the languages of the model, such as `zh-Hans-CN` and `zh-Hant-TW`.
+
 ### Electron
 
 The main process owns the native addon. A renderer uses the same Provider through Eventa:

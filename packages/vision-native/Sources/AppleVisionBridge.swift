@@ -356,6 +356,13 @@ func compileOCRModels() async throws {
     _ = try await RecognizeTextRequest().perform(on: context.makeImage()!)
 }
 
+/// The languages of the default model as maximal BCP 47 identifiers, sorted. See ADR-0012.
+///
+/// A minimal identifier is ambiguous: `zh` means `zh-Hans-CN`, and `zh-TW` means `zh-Hant-TW`.
+func supportedLanguageIdentifiers(_ languages: some Collection<Locale.Language>) -> [String] {
+    Set(languages.map(\.maximalIdentifier)).sorted()
+}
+
 /// Counts the tokens of the whole request with the SDK. It returns nil when counting fails.
 func tokenCount(of transcript: Transcript, and prompt: Prompt) async -> Int? {
     let model = SystemLanguageModel.default
@@ -465,6 +472,23 @@ func answer(
                 completion(nil, String(describing: error) as NSString)
             }
         }
+    }
+
+    @objc public static func supportedLanguages(completion: @escaping AppleVisionJSONCallback) {
+        Task {
+            do {
+                let identifiers = supportedLanguageIdentifiers(SystemLanguageModel.default.supportedLanguages)
+                completion(try encodeJSON(identifiers), nil)
+            } catch {
+                completion(nil, String(describing: error) as NSString)
+            }
+        }
+    }
+
+    /// Uses the SDK match, which accepts a regional variant such as `es-MX` for `es-419`.
+    @objc public static func supportsLanguage(identifier: NSString, completion: @escaping AppleVisionJSONCallback) {
+        let supported = SystemLanguageModel.default.supportsLocale(Locale(identifier: identifier as String))
+        completion(supported ? "true" : "false", nil)
     }
 
     /// Calls `snapshot` for each stream snapshot, then `completion` once.

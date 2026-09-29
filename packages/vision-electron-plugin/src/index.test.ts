@@ -26,6 +26,8 @@ describe('electron Eventa Provider', () => {
   it('reports the availability of the main-process Provider', async () => {
     const { dispose, provider } = connect({
       isAvailable: async () => ({ available: false, reason: { code: 'model-not-ready', message: 'Downloading.' } }),
+      supportedLanguages: async () => ['en-Latn-US'],
+      supportsLanguage: async () => true,
       respond: vi.fn(),
     })
 
@@ -42,7 +44,7 @@ describe('electron Eventa Provider', () => {
       onText?.('A menu.')
       return { answer: { finishReason: 'stop', text: 'A menu.' } }
     })
-    const { dispose, provider } = connect({ isAvailable: async () => ({ available: true }), respond })
+    const { dispose, provider } = connect({ isAvailable: async () => ({ available: true }), supportedLanguages: async () => ['en-Latn-US'], supportsLanguage: async () => true, respond })
     const texts: string[] = []
 
     const result = await provider.respond({ history: [], images: [Uint8Array.from([1, 2])], prompt: 'What is this?' }, { onText: text => texts.push(text) })
@@ -56,6 +58,8 @@ describe('electron Eventa Provider', () => {
   it('streams a chat completion through the renderer Provider', async () => {
     const { dispose, provider } = connect({
       isAvailable: async () => ({ available: true }),
+      supportedLanguages: async () => ['en-Latn-US'],
+      supportsLanguage: async () => true,
       respond: async (_, { onText } = {}) => {
         onText?.('Hi')
         return { answer: { finishReason: 'stop', text: 'Hi' } }
@@ -77,6 +81,8 @@ describe('electron Eventa Provider', () => {
     let mainSignal: AbortSignal | undefined
     const { dispose, provider } = connect({
       isAvailable: async () => ({ available: true }),
+      supportedLanguages: async () => ['en-Latn-US'],
+      supportsLanguage: async () => true,
       respond: (_, { signal } = {}) => new Promise((_, reject) => {
         mainSignal = signal
         signal?.addEventListener('abort', () => reject(signal.reason))
@@ -91,6 +97,19 @@ describe('electron Eventa Provider', () => {
 
     await expect(result).rejects.toBe(reason)
     await vi.waitFor(() => expect(mainSignal?.aborted).toBe(true))
+    dispose()
+  })
+
+  it('lists the languages of the main-process Provider', async () => {
+    const { dispose, provider } = connect({
+      isAvailable: async () => ({ available: true }),
+      respond: vi.fn(),
+      supportedLanguages: async () => ['en-Latn-US', 'zh-Hant-TW'],
+      supportsLanguage: async tag => tag === 'es-MX',
+    })
+
+    await expect(provider.supportedLanguages()).resolves.toEqual(['en-Latn-US', 'zh-Hant-TW'])
+    await expect(provider.supportsLanguage('es-MX')).resolves.toBe(true)
     dispose()
   })
 })

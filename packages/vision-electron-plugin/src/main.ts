@@ -3,7 +3,7 @@ import type { AppleVisionProvider } from '@xsai-apple-vision/vision'
 
 import { defineInvokeHandler, defineStreamInvokeHandler, toStreamHandler } from '@moeru/eventa'
 
-import { appleVisionIsAvailable, appleVisionRespond } from './events'
+import { appleVisionIsAvailable, appleVisionRespond, appleVisionSupportedLanguages, appleVisionSupportsLanguage } from './events'
 
 /** Eventa gives a cancellable invoke an abort controller, which the renderer aborts. */
 function abortSignalFrom(options: unknown) {
@@ -28,6 +28,8 @@ export function setupAppleVision<Extensions, EmitOptions extends { raw?: unknown
 }): { dispose: () => void } {
   const handlerDisposers = [
     defineInvokeHandler(options.context, appleVisionIsAvailable, () => options.provider.isAvailable()),
+    defineInvokeHandler(options.context, appleVisionSupportedLanguages, () => options.provider.supportedLanguages()),
+    defineInvokeHandler(options.context, appleVisionSupportsLanguage, tag => options.provider.supportsLanguage(tag)),
     defineStreamInvokeHandler(options.context, appleVisionRespond, toStreamHandler(async ({ emit, options: invokeOptions, payload }) => {
       const signal = abortSignalFrom(invokeOptions)
       const result = await options.provider.respond(payload, {

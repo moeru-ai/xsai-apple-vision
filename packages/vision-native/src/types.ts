@@ -10,6 +10,10 @@ export interface RawNativeAddon {
    */
   /** Compiles the OCR models for this app. The first call takes about a minute. */
   prepareOCR: () => Promise<string>
+  /** Returns a JSON array of maximal BCP 47 identifiers. */
+  supportedLanguages: () => Promise<string>
+  /** Returns `true` or `false` as JSON. */
+  supportsLanguage: (tag: string) => Promise<string>
   respond: (requestJSON: string, images: Buffer[], onSnapshot?: (text: string) => void) => {
     result: Promise<string>
     cancel: () => void

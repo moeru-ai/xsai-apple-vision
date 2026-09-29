@@ -19,7 +19,18 @@ The guardrail stop keeps the 200 response, as OpenAI does, so the caller keeps t
 
 A refusal uses the same code as a guardrail rejection. The SDK can generate an explanation for a refusal, but that takes another model round, so the Provider does not request it.
 
-`unsupported_language` is not an OpenAI code. A host uses it to tell the user that the Apple model does not support the language, instead of a general failure. The Provider also lists the supported languages, so a host can check before it sends a request.
+`unsupported_language` is not an OpenAI code. A host uses it to tell the user that the Apple model does not support the language, instead of a general failure.
+
+## Checking a language before a request
+
+The Provider has two methods, so a host can check a language before it sends a request:
+
+- `supportedLanguages()` lists the languages of the model, for example to show them in settings. It returns maximal BCP 47 identifiers, such as `zh-Hans-CN` and `zh-Hant-TW`. A minimal identifier is ambiguous: the SDK lists `zh` for `zh-Hans-CN`, so `zh` does not say which script it means.
+- `supportsLanguage(tag)` checks one tag with the SDK match. The match accepts a regional variant of a listed language: `es-MX` matches `es-Latn-419`, and `en-CA` matches English.
+
+A host uses `supportsLanguage(tag)` for the check. An exact comparison with the list rejects a regional variant, such as `es-MX`, that the model supports.
+
+On macOS 27.2, the default model lists 24 languages.
 
 ## Telling the two guardrail cases apart
 

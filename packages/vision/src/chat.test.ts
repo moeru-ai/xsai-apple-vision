@@ -63,6 +63,8 @@ function events(text: string) {
 describe('createChatFetch', () => {
   const operations = (overrides: Partial<AppleVisionOperations> = {}): AppleVisionOperations => ({
     isAvailable: async () => ({ available: true }),
+    supportedLanguages: async () => [],
+    supportsLanguage: async () => true,
     respond: async () => ({ answer: { finishReason: 'stop', text: 'A menu.', usage: { completionTokens: 3, promptTokens: 200 } } }),
     ...overrides,
   })
@@ -151,7 +153,7 @@ describe('createChatFetch', () => {
 
 describe('createChatFetch with stream: true', () => {
   const streamOf = (respond: AppleVisionOperations['respond'], streamOptions?: Record<string, unknown>) => post(
-    createChatFetch({ isAvailable: async () => ({ available: true }), respond }),
+    createChatFetch({ isAvailable: async () => ({ available: true }), respond, supportedLanguages: async () => [], supportsLanguage: async () => true }),
     { messages: [{ content: 'Hi', role: 'user' }], model: 'system', stream: true, stream_options: streamOptions },
   )
 

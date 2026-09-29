@@ -56,6 +56,12 @@ export function createAppleVisionProvider(options: CreateAppleVisionProviderOpti
     async isAvailable() {
       return JSON.parse(await resolveAddon().isAvailable()) as AppleVisionAvailability
     },
+    async supportedLanguages() {
+      return JSON.parse(await resolveAddon().supportedLanguages()) as string[]
+    },
+    async supportsLanguage(tag) {
+      return JSON.parse(await resolveAddon().supportsLanguage(tag)) as boolean
+    },
     async respond({ history, images, ...request }, { onText, signal } = {}) {
       signal?.throwIfAborted()
       // The addon takes one image list: the images of each history turn in
