@@ -1,15 +1,26 @@
-# xsai-apple-vision
+# xsAI Apple Vision
+
+[![npm version][npmx-version-src]][npmx-version-href]
+[![npm downloads][npmx-downloads-src]][npmx-downloads-href]
+[![bundle][bundle-src]][bundle-href]
+[![License][license-src]][license-href]
+[![JSDocs][jsdocs-src]][jsdocs-href]
 
 🍎👁️ On-device image understanding with Apple Foundation Models, for Node.js and Electron, compatible with xsAI.
-
-> [!NOTE]
-> This repository is in early development. No package is published yet.
 
 ## What it does
 
 The Apple Vision Provider is an xsAI chat provider. It sends a prompt and images to the on-device Apple Foundation Model and returns text or structured output. The model runs on the Mac. It needs no API key, no account, and no network.
 
 It answers a conversation of `system`, `user`, and `assistant` messages, with images in `user` messages. It returns text, or JSON that matches a schema. It streams text with `stream: true`, and an aborted request cancels the on-device session.
+
+## Install
+
+```sh
+pnpm add @xsai-apple-vision/vision-native @xsai/generate-text
+```
+
+For Electron, also add `@xsai-apple-vision/vision-electron-plugin` and `@moeru/eventa`.
 
 ## Usage
 
@@ -130,12 +141,12 @@ When the guardrails stop the output after some text, the response keeps that tex
 
 ## Packages
 
-| Package                                         | Content                                                                  |
-| ----------------------------------------------- | ------------------------------------------------------------------------ |
-| `@xsai-apple-vision/vision`                     | The shared Provider contract, the availability types, and the errors.    |
-| `@xsai-apple-vision/vision-native`              | The native Provider. It loads the Node-API addon.                        |
-| `@xsai-apple-vision/vision-native-darwin-arm64` | The addon. macOS 27 runs only on Apple silicon, so no x64 addon exists.  |
-| `@xsai-apple-vision/vision-electron-plugin`     | The Eventa contract, the main-process plugin, and the renderer Provider. |
+| Package                                                                                                                        | Content                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
+| [`@xsai-apple-vision/vision`](https://www.npmjs.com/package/@xsai-apple-vision/vision)                                         | The shared Provider contract, the availability types, and the errors.    |
+| [`@xsai-apple-vision/vision-native`](https://www.npmjs.com/package/@xsai-apple-vision/vision-native)                           | The native Provider. It loads the Node-API addon.                        |
+| [`@xsai-apple-vision/vision-native-darwin-arm64`](https://www.npmjs.com/package/@xsai-apple-vision/vision-native-darwin-arm64) | The addon. macOS 27 runs only on Apple silicon, so no x64 addon exists.  |
+| [`@xsai-apple-vision/vision-electron-plugin`](https://www.npmjs.com/package/@xsai-apple-vision/vision-electron-plugin)         | The Eventa contract, the main-process plugin, and the renderer Provider. |
 
 ## Requirements
 
@@ -147,3 +158,16 @@ This repository does not speak. For on-device text-to-speech and speech recognit
 ## License
 
 [MIT](LICENSE)
+
+<!-- Badges -->
+
+[npmx-version-src]: https://npmx.dev/api/registry/badge/version/@xsai-apple-vision/vision-native
+[npmx-version-href]: https://npmx.dev/@xsai-apple-vision/vision-native
+[npmx-downloads-src]: https://npmx.dev/api/registry/badge/downloads-month/@xsai-apple-vision/vision-native
+[npmx-downloads-href]: https://npmx.dev/@xsai-apple-vision/vision-native
+[bundle-src]: https://npmx.dev/api/registry/badge/size/@xsai-apple-vision/vision-native
+[bundle-href]: https://bundlephobia.com/result?p=@xsai-apple-vision/vision-native
+[license-src]: https://npmx.dev/api/registry/badge/license/@xsai-apple-vision/vision-native
+[license-href]: https://github.com/moeru-ai/xsai-apple-vision/blob/main/LICENSE
+[jsdocs-src]: https://img.shields.io/badge/jsdocs-reference-080f12?style=flat&colorA=080f12&colorB=1fa669
+[jsdocs-href]: https://www.jsdocs.io/package/@xsai-apple-vision/vision-native
