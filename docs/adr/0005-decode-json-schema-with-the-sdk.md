@@ -8,6 +8,15 @@ A request with `response_format: { type: 'json_schema' }` returns structured out
 
 The Swift module decodes the JSON Schema with the SDK decoder: `GenerationSchema` is `Decodable` from JSON Schema. Guided generation then keeps the model output inside the schema. We rejected a converter of our own to `DynamicGenerationSchema`. The SDK decoder already covers more of JSON Schema than a converter would, and it changes with the SDK.
 
+## The form that the SDK decodes
+
+The macOS 27.0 SDK decodes an object schema only when it has all of `title`, `required`, `additionalProperties`, and `x-order`, and an `anyOf` only with `title`. A probe on the CI runner with macOS 27.0 (26A428) failed for each missing key. The macOS 27.2 SDK does not need them. So the request schema is completed before the SDK decodes it:
+
+- The native Provider adds `x-order`, the SDK list of property names, in the caller's order. Only JavaScript keeps the key order of the JSON.
+- The Swift module adds a unique `title` to each object and each `anyOf` without one, `required: []`, and `additionalProperties: false`.
+
+These keys do not change what the caller asked for. No `required` already means that no property is required, and guided generation adds no other property. The key order of the JSON answer does not follow `x-order`: on macOS 27.2, a schema with the order `zebra`, `apple`, `mango` returned `mango`, `zebra`, `apple`.
+
 ## Keywords that the SDK drops
 
 The SDK decoder drops some keywords without an error. The output then does not follow them, and the caller does not know. So the Swift module encodes the decoded schema again, resolves its `$ref` values, and checks that each keyword of the request schema is still there with the same value. A dropped or changed keyword fails the request with a 400 `unsupported_request` response that names the keyword and its location, for example `The "format" keyword at properties.email is not supported.`
@@ -23,15 +32,14 @@ Measured with the macOS 27.2 SDK:
 
 A schema that the SDK cannot decode fails with the same code and the SDK message.
 
-## Titles for `anyOf`
+## Unique titles
 
-A nullable field or a union, such as `v.nullable()` or `v.union()` in Valibot, becomes an `anyOf`. The SDK requires a `title` on each `anyOf`, and it stores each titled choice in `$defs` under its title. So:
+A nullable field or a union, such as `v.nullable()` or `v.union()` in Valibot, becomes an `anyOf`. The SDK stores each titled schema in `$defs` under its title. So:
 
-- The Swift module gives each `anyOf` without a title a unique title, from the property name.
-- It also gives each object in an `anyOf` a unique title. Otherwise the SDK names both objects from the same path, and the second object replaces the first.
-- Two `anyOf` with the same title from the caller become one choice in the SDK. The value check then finds the changed type and fails the request.
+- Each added title is unique, from the property name. An object in an `anyOf` gets a title from its option number.
+- Two schemas with the same title from the caller become one schema in the SDK. The value check then finds the changed type and fails the request.
 
-A title is only a name, so it does not change what the caller asked for. The model fills a `null` choice when there is no value.
+The model fills a `null` choice when there is no value.
 
 ## Other formats
 

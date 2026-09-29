@@ -266,12 +266,17 @@ enum AppleVisionBridgeError: Error, CustomStringConvertible, Equatable {
 /// Keywords that only annotate a schema. The SDK drops them, which does not change the output.
 let annotationKeywords: Set<String> = ["$schema", "$id", "$comment", "default", "examples", "deprecated", "readOnly", "writeOnly"]
 
-/// Gives each `anyOf`, and each object in an `anyOf`, a unique `title`. See ADR-0005.
+/// Completes each object schema and each `anyOf` to the form that the SDK decodes. See ADR-0005.
 ///
-/// The SDK requires a title on an `anyOf`, and it stores each titled choice under
-/// its title. An object choice without a title gets a name from its path, which two
-/// choices share. Two choices with one name then become the same choice.
-func titledChoices(_ schema: Any) -> Any {
+/// The macOS 27.0 SDK decodes an object schema only with `title`, `required`,
+/// `additionalProperties`, and `x-order`, and an `anyOf` only with `title`. The
+/// TypeScript Provider adds `x-order`, because only it knows the property order.
+///
+/// A title must be unique: the SDK stores each titled schema under its title, so
+/// two schemas with one title become one. `additionalProperties: false` and
+/// `required: []` do not change what the caller asked for, because guided
+/// generation adds no other property, and no `required` means none.
+func completedForTheSDK(_ schema: Any) -> Any {
     var used = Set<String>()
     func collectTitles(_ value: Any) {
         if let object = value as? [String: Any] {
@@ -308,23 +313,22 @@ func titledChoices(_ schema: Any) -> Any {
                 object[key] = members.reduce(into: [String: Any]()) { $0[$1.key] = visit($1.value, name: $1.key) }
             } else if key == "anyOf", let choices = child as? [Any] {
                 object[key] = choices.enumerated().map { index, choice in
-                    var choice = visit(choice, name: "\(name) option \(index + 1)")
-                    if var choiceObject = choice as? [String: Any], choiceObject["title"] == nil, choiceObject["properties"] != nil {
-                        choiceObject["title"] = uniqueTitle("\(name) option \(index + 1)")
-                        choice = choiceObject
-                    }
-                    return choice
+                    visit(choice, name: "\(name) option \(index + 1)")
                 }
             } else if !valueKeywords.contains(key) {
                 object[key] = visit(child, name: name)
             }
         }
-        if object["anyOf"] != nil, object["title"] == nil {
+        if object["properties"] != nil {
+            object["additionalProperties"] = object["additionalProperties"] ?? false
+            object["required"] = object["required"] ?? [String]()
+        }
+        if object["properties"] != nil || object["anyOf"] != nil, object["title"] == nil {
             object["title"] = uniqueTitle(name)
         }
         return object
     }
-    return visit(schema, name: "Value")
+    return visit(schema, name: "Object")
 }
 
 /// Keywords whose value is data, not a schema.
@@ -400,8 +404,8 @@ func generationSchema(fromJSON json: String) throws(SchemaError) -> GenerationSc
             throw SchemaError(message: "The JSON Schema must be an object.")
         }
         input = object
-        let titled = try JSONSerialization.data(withJSONObject: titledChoices(input))
-        schema = try JSONDecoder().decode(GenerationSchema.self, from: titled)
+        let completed = try JSONSerialization.data(withJSONObject: completedForTheSDK(input))
+        schema = try JSONDecoder().decode(GenerationSchema.self, from: completed)
         output = try JSONSerialization.jsonObject(with: JSONEncoder().encode(schema)) as? [String: Any] ?? [:]
     } catch let error as SchemaError {
         throw error

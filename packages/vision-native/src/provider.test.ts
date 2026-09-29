@@ -2,7 +2,7 @@ import type { Buffer } from 'node:buffer'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { createAppleVisionProvider } from './provider'
+import { createAppleVisionProvider, withPropertyOrder } from './provider'
 
 function answer(json: string) {
   return { cancel: vi.fn(), result: Promise.resolve(json) }
@@ -151,6 +151,26 @@ describe('createAppleVisionProvider', () => {
 
     const request = JSON.parse(respond.mock.calls[0]![0])
     expect(request.schema).toBeUndefined()
-    expect(JSON.parse(request.schemaJSON)).toEqual(schema)
+    expect(JSON.parse(request.schemaJSON)).toEqual({ ...schema, 'x-order': ['app'] })
+  })
+
+  it('orders the properties of every object schema in the caller\'s order', () => {
+    const schema = {
+      $defs: { Item: { properties: { z: { type: 'string' }, a: { type: 'string' } }, type: 'object' } },
+      properties: {
+        items: { items: { properties: { second: { type: 'number' }, first: { type: 'number' } }, type: 'object' }, type: 'array' },
+        choice: { anyOf: [{ properties: { b: { type: 'string' }, a: { type: 'string' } }, type: 'object' }, { type: 'null' }] },
+        fixed: { const: { keep: 'as is' } },
+      },
+      type: 'object',
+    }
+
+    const ordered = withPropertyOrder(schema) as any
+
+    expect(ordered['x-order']).toEqual(['items', 'choice', 'fixed'])
+    expect(ordered.properties.items.items['x-order']).toEqual(['second', 'first'])
+    expect(ordered.properties.choice.anyOf[0]['x-order']).toEqual(['b', 'a'])
+    expect(ordered.$defs.Item['x-order']).toEqual(['z', 'a'])
+    expect(ordered.properties.fixed.const).toEqual({ keep: 'as is' })
   })
 })
