@@ -6,6 +6,7 @@
   "scripts": {
     "build": "pnpm -r --if-present build",
     "build:native": "pnpm --filter @xsai-apple-vision/vision-native build:native",
+    "check:clean-install": "bash scripts/check-clean-install.sh",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "vitest run",

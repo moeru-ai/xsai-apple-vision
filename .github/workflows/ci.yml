@@ -30,6 +30,8 @@ jobs:
 
       - run: pnpm build:native
 
+      - run: pnpm check:clean-install
+
       - run: pnpm lint
 
       - run: pnpm test
