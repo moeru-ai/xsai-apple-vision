@@ -1,0 +1,49 @@
+{
+  "name": "@xsai-apple-vision/vision-native",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Native macOS Apple Vision Provider for xsAI.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moeru-ai/xsai-apple-vision.git",
+    "directory": "packages/vision-native"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs"
+      },
+      "./package.json": "./package.json"
+    },
+    "main": "./dist/index.mjs",
+    "types": "./dist/index.d.mts"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "README.md",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "build:native": "bash scripts/build-native.sh",
+    "test:native": "swift test",
+    "test": "vitest run src",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@xsai-apple-vision/vision": "workspace:^"
+  },
+  "optionalDependencies": {
+    "@xsai-apple-vision/vision-native-darwin-arm64": "workspace:*"
+  }
+}

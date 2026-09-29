@@ -1,0 +1,24 @@
+catalogMode: strict
+
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  - semver@5.7.2
+  - semver@6.3.1
+
+shellEmulator: true
+
+packages:
+  - packages/*
+  - packages/vision-native/npm/*
+
+catalog:
+  '@antfu/eslint-config': ^9.3.0
+  '@moeru/eventa': ^1.0.0
+  '@types/node': ^25.0.0
+  '@xsai/shared': 0.5.0-beta.8
+  bumpp: ^12.2.0
+  eslint: ^10.5.0
+  eslint-plugin-format: ^2.0.1
+  tsdown: ^0.22.2
+  typescript: ^6.0.0
+  vitest: ^4.1.0

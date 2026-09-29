@@ -1,0 +1,24 @@
+{
+  "name": "@xsai-apple-vision/vision-native-darwin-arm64",
+  "version": "0.0.0",
+  "description": "Darwin arm64 native addon for xsAI Apple Vision.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moeru-ai/xsai-apple-vision.git",
+    "directory": "packages/vision-native/npm/darwin-arm64"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "exports": {
+    ".": "./apple-vision.node",
+    "./package.json": "./package.json"
+  },
+  "main": "./apple-vision.node",
+  "files": [
+    "apple-vision.node"
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "name": "@xsai-apple-vision/vision-electron-plugin",
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Eventa Electron plugin and renderer Provider for xsAI Apple Vision.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/moeru-ai/xsai-apple-vision.git",
+    "directory": "packages/vision-electron-plugin"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.mts",
+        "import": "./dist/index.mjs"
+      },
+      "./events": {
+        "types": "./dist/events.d.mts",
+        "import": "./dist/events.mjs"
+      },
+      "./main": {
+        "types": "./dist/main.d.mts",
+        "import": "./dist/main.mjs"
+      }
+    },
+    "main": "./dist/index.mjs",
+    "types": "./dist/index.d.mts"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./events": {
+      "types": "./dist/events.d.mts",
+      "import": "./dist/events.mjs"
+    },
+    "./main": {
+      "types": "./dist/main.d.mts",
+      "import": "./dist/main.mjs"
+    }
+  },
+  "files": [
+    "README.md",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run src",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "electron": ">=39"
+  },
+  "peerDependenciesMeta": {
+    "electron": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "@moeru/eventa": "catalog:",
+    "@xsai-apple-vision/vision": "workspace:^"
+  }
+}
