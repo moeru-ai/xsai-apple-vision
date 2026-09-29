@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    # The addon needs the macOS 27 SDK, and the Swift tests need macOS 27.
+    # The `xcode-27` image runs macOS 27 with Xcode 27. It is a GitHub preview image.
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - run: pnpm build:native
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+      - run: pnpm typecheck
+
+      - run: pnpm --filter @xsai-apple-vision/vision-native test:native
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-arm64
+          path: packages/vision-native/npm/darwin-arm64/apple-vision.node
