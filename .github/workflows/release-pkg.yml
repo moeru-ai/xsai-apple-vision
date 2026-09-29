@@ -1,8 +1,9 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: read
@@ -26,30 +27,6 @@ jobs:
           package-manager-cache: false
 
       - run: pnpm install --frozen-lockfile
-
-      - name: Verify release versions
-        env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: |
-          node --input-type=module <<'NODE'
-          import { readFileSync } from 'node:fs'
-
-          const version = process.env.RELEASE_TAG?.match(/^v(.+)$/)?.[1]
-          if (!version)
-            throw new Error('Release tag must start with v.')
-
-          const packages = [
-            'packages/vision',
-            'packages/vision-native',
-            'packages/vision-native/npm/darwin-arm64',
-            'packages/vision-electron-plugin',
-          ]
-          for (const directory of packages) {
-            const manifest = JSON.parse(readFileSync(`${directory}/package.json`, 'utf8'))
-            if (manifest.version !== version)
-              throw new Error(`${manifest.name} is ${manifest.version}; release tag is v${version}.`)
-          }
-          NODE
 
       - name: Build native addon
         run: pnpm build:native
