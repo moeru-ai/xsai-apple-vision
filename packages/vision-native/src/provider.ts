@@ -21,6 +21,17 @@ export interface CreateAppleVisionProviderOptions {
   builtInTools?: AppleVisionBuiltInTools
 }
 
+export interface NativeAppleVisionProvider extends AppleVisionProvider {
+  /**
+   * Prepares the built-in tools before the first request. See ADR-0016.
+   *
+   * With OCR on, the first call in an app compiles the OCR models, which takes
+   * about a minute once for each app and system build. Later calls return in
+   * less than a second. Without OCR, it does nothing.
+   */
+  prepare: () => Promise<void>
+}
+
 const require = createRequire(import.meta.url)
 
 function loadNativeAddon(): RawNativeAddon {
@@ -33,7 +44,7 @@ function loadNativeAddon(): RawNativeAddon {
  * Creating the Provider does not load the addon. The first operation loads it,
  * and passes a load error, such as on another architecture, to the caller.
  */
-export function createAppleVisionProvider(options: CreateAppleVisionProviderOptions = {}): AppleVisionProvider {
+export function createAppleVisionProvider(options: CreateAppleVisionProviderOptions = {}): NativeAppleVisionProvider {
   let addon = options.addon
 
   const resolveAddon = (): RawNativeAddon => {
@@ -74,5 +85,11 @@ export function createAppleVisionProvider(options: CreateAppleVisionProviderOpti
     },
   }
 
-  return createSharedAppleVisionProvider(operations)
+  return {
+    ...createSharedAppleVisionProvider(operations),
+    async prepare() {
+      if (options.builtInTools?.ocr === true)
+        await resolveAddon().prepareOCR()
+    },
+  }
 }

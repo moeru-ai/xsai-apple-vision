@@ -44,4 +44,4 @@ The first OCR call of an app takes 60 to 80 seconds. The Neural Engine runtime t
 
 The compiled models stay in `~/Library/Caches/<bundle identifier or executable name>/com.apple.e5rt.e5bundlecache/<system build>/`. So each app pays this cost once, and again after a system update. A copy of the same executable under another name pays it again.
 
-A host with a request timeout under 80 seconds, such as AIRI with 60 seconds, can time out on this first call.
+A host with a request timeout under 80 seconds, such as AIRI with 60 seconds, can time out on this first call. ADR-0016 compiles the models before the first request.

@@ -8,6 +8,8 @@ export interface RawNativeAddon {
    * `onSnapshot` receives the whole text of each stream snapshot before `result` settles.
    * `cancel` stops the session, and `result` then rejects.
    */
+  /** Compiles the OCR models for this app. The first call takes about a minute. */
+  prepareOCR: () => Promise<string>
   respond: (requestJSON: string, images: Buffer[], onSnapshot?: (text: string) => void) => {
     result: Promise<string>
     cancel: () => void
