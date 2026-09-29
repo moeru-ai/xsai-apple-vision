@@ -104,6 +104,15 @@ void provider.prepare()
 
 After the models are compiled, `prepare()` returns in less than a second, and an OCR call takes a few seconds.
 
+### Example
+
+[examples/electron](examples/electron) is a complete Electron app that uses every Provider operation:
+
+```sh
+pnpm build
+pnpm --filter @xsai-apple-vision/example-electron dev
+```
+
 ## Errors
 
 A failed request returns a chat-completions error response:
