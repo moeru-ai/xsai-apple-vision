@@ -266,62 +266,152 @@ enum AppleVisionBridgeError: Error, CustomStringConvertible, Equatable {
 /// Keywords that only annotate a schema. The SDK drops them, which does not change the output.
 let annotationKeywords: Set<String> = ["$schema", "$id", "$comment", "default", "examples", "deprecated", "readOnly", "writeOnly"]
 
-/// Keywords whose value is data, not a schema. Their contents are not keywords.
-let valueKeywords: Set<String> = ["enum", "const", "required", "default", "examples", "x-order"]
-
-/// Lists the keyword paths of a JSON Schema, such as `properties.name.format`.
-func keywordPaths(of value: Any, at path: [String] = []) -> Set<[String]> {
-    var paths = Set<[String]>()
-    if let object = value as? [String: Any] {
-        for (key, child) in object {
-            // The members of `properties` and `$defs` are names, not keywords.
-            let namesSchemas = key == "properties" || key == "$defs"
-            if !namesSchemas {
-                paths.insert(path + [key])
+/// Gives each `anyOf`, and each object in an `anyOf`, a unique `title`. See ADR-0005.
+///
+/// The SDK requires a title on an `anyOf`, and it stores each titled choice under
+/// its title. An object choice without a title gets a name from its path, which two
+/// choices share. Two choices with one name then become the same choice.
+func titledChoices(_ schema: Any) -> Any {
+    var used = Set<String>()
+    func collectTitles(_ value: Any) {
+        if let object = value as? [String: Any] {
+            if let title = object["title"] as? String {
+                used.insert(title)
             }
-            if valueKeywords.contains(key) {
-                continue
-            }
-            if namesSchemas, let members = child as? [String: Any] {
-                for (name, schema) in members {
-                    paths.formUnion(keywordPaths(of: schema, at: path + [key, name]))
-                }
-            } else {
-                paths.formUnion(keywordPaths(of: child, at: path + [key]))
-            }
-        }
-    } else if let array = value as? [Any] {
-        for (index, child) in array.enumerated() {
-            paths.formUnion(keywordPaths(of: child, at: path + [String(index)]))
+            object.values.forEach(collectTitles)
+        } else if let array = value as? [Any] {
+            array.forEach(collectTitles)
         }
     }
-    return paths
+    collectTitles(schema)
+
+    func uniqueTitle(_ base: String) -> String {
+        var title = base
+        var number = 2
+        while used.contains(title) {
+            title = "\(base) \(number)"
+            number += 1
+        }
+        used.insert(title)
+        return title
+    }
+
+    func visit(_ value: Any, name: String) -> Any {
+        if let array = value as? [Any] {
+            return array.map { visit($0, name: name) }
+        }
+        guard var object = value as? [String: Any] else {
+            return value
+        }
+        for (key, child) in object {
+            if key == "properties" || key == "$defs", let members = child as? [String: Any] {
+                object[key] = members.reduce(into: [String: Any]()) { $0[$1.key] = visit($1.value, name: $1.key) }
+            } else if key == "anyOf", let choices = child as? [Any] {
+                object[key] = choices.enumerated().map { index, choice in
+                    var choice = visit(choice, name: "\(name) option \(index + 1)")
+                    if var choiceObject = choice as? [String: Any], choiceObject["title"] == nil, choiceObject["properties"] != nil {
+                        choiceObject["title"] = uniqueTitle("\(name) option \(index + 1)")
+                        choice = choiceObject
+                    }
+                    return choice
+                }
+            } else if !valueKeywords.contains(key) {
+                object[key] = visit(child, name: name)
+            }
+        }
+        if object["anyOf"] != nil, object["title"] == nil {
+            object["title"] = uniqueTitle(name)
+        }
+        return object
+    }
+    return visit(schema, name: "Value")
+}
+
+/// Keywords whose value is data, not a schema.
+let valueKeywords: Set<String> = ["enum", "const", "required", "default", "examples", "x-order"]
+
+/// Replaces a `$ref` to `#/$defs/<name>` with its definition.
+func resolvingReference(_ value: Any, in root: [String: Any]) -> Any {
+    guard
+        let object = value as? [String: Any],
+        let reference = object["$ref"] as? String,
+        reference.hasPrefix("#/$defs/"),
+        let definitions = root["$defs"] as? [String: Any],
+        let definition = definitions[String(reference.dropFirst("#/$defs/".count))]
+    else {
+        return value
+    }
+    return resolvingReference(definition, in: root)
+}
+
+/// Finds the first keyword of `input` that `output` does not keep with the same value.
+///
+/// It returns the path to that keyword, such as `["properties", "email", "format"]`.
+func firstChange(from input: Any, to output: Any, inputRoot: [String: Any], outputRoot: [String: Any], path: [String] = []) -> [String]? {
+    let input = resolvingReference(input, in: inputRoot)
+    let output = resolvingReference(output, in: outputRoot)
+    if let inputObject = input as? [String: Any] {
+        guard let outputObject = output as? [String: Any] else {
+            return path
+        }
+        for key in inputObject.keys.sorted() where !annotationKeywords.contains(key) && key != "$defs" && key != "title" {
+            guard let outputValue = outputObject[key] else {
+                return path + [key]
+            }
+            if key == "required" {
+                let inputNames = Set(inputObject[key] as? [String] ?? [])
+                if inputNames != Set(outputValue as? [String] ?? []) {
+                    return path + [key]
+                }
+                continue
+            }
+            if let change = firstChange(from: inputObject[key]!, to: outputValue, inputRoot: inputRoot, outputRoot: outputRoot, path: path + [key]) {
+                return change
+            }
+        }
+        return nil
+    }
+    if let inputArray = input as? [Any] {
+        guard let outputArray = output as? [Any], outputArray.count == inputArray.count else {
+            return path
+        }
+        for (index, (inputItem, outputItem)) in zip(inputArray, outputArray).enumerated() {
+            if let change = firstChange(from: inputItem, to: outputItem, inputRoot: inputRoot, outputRoot: outputRoot, path: path + [String(index)]) {
+                return change
+            }
+        }
+        return nil
+    }
+    return (input as? NSObject) == (output as? NSObject) ? nil : path
 }
 
 /// Decodes a JSON Schema with the SDK decoder. See ADR-0005.
 ///
 /// The SDK decoder drops keywords that it cannot guide, such as `format` or
 /// `minLength`, without an error. The output then does not match what the caller
-/// asked for, so a dropped keyword fails, except an annotation.
+/// asked for. So the decoded schema is encoded again, and a keyword that it does
+/// not keep with the same value fails, except an annotation.
 func generationSchema(fromJSON json: String) throws(SchemaError) -> GenerationSchema {
-    let data = Data(json.utf8)
     let schema: GenerationSchema
-    let input: Any
-    let output: Any
+    let input: [String: Any]
+    let output: [String: Any]
     do {
-        schema = try JSONDecoder().decode(GenerationSchema.self, from: data)
-        input = try JSONSerialization.jsonObject(with: data)
-        output = try JSONSerialization.jsonObject(with: JSONEncoder().encode(schema))
+        guard let object = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else {
+            throw SchemaError(message: "The JSON Schema must be an object.")
+        }
+        input = object
+        let titled = try JSONSerialization.data(withJSONObject: titledChoices(input))
+        schema = try JSONDecoder().decode(GenerationSchema.self, from: titled)
+        output = try JSONSerialization.jsonObject(with: JSONEncoder().encode(schema)) as? [String: Any] ?? [:]
+    } catch let error as SchemaError {
+        throw error
     } catch {
         throw SchemaError(message: "The JSON Schema is not supported: \(error)")
     }
-    let dropped = keywordPaths(of: input)
-        .subtracting(keywordPaths(of: output))
-        .filter { !annotationKeywords.contains($0.last!) }
-        .sorted { $0.joined(separator: ".") < $1.joined(separator: ".") }
-    if let first = dropped.first {
-        let location = first.dropLast().joined(separator: ".")
-        throw SchemaError(message: "The \"\(first.last!)\" keyword\(location.isEmpty ? "" : " at \(location)") is not supported.")
+    if let change = firstChange(from: input, to: output, inputRoot: input, outputRoot: output) {
+        let keyword = change.last(where: { Int($0) == nil }) ?? "schema"
+        let location = change.prefix(through: change.lastIndex(of: keyword) ?? 0).dropLast().joined(separator: ".")
+        throw SchemaError(message: "The \"\(keyword)\" keyword\(location.isEmpty ? "" : " at \(location)") is not supported.")
     }
     return schema
 }
