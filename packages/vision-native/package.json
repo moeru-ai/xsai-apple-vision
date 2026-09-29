@@ -1,7 +1,7 @@
 {
   "name": "@xsai-apple-vision/vision-native",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Native macOS Apple Vision Provider for xsAI.",
   "license": "MIT",
   "repository": {

@@ -1,6 +1,6 @@
 {
   "name": "@xsai-apple-vision/vision-native-darwin-arm64",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Darwin arm64 native addon for xsAI Apple Vision.",
   "license": "MIT",
   "repository": {

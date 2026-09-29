@@ -1,7 +1,7 @@
 {
   "name": "@xsai-apple-vision/vision-electron-plugin",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Eventa Electron plugin and renderer Provider for xsAI Apple Vision.",
   "license": "MIT",
   "repository": {

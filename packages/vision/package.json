@@ -1,7 +1,7 @@
 {
   "name": "@xsai-apple-vision/vision",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Shared xsAI Provider contract for Apple Vision.",
   "license": "MIT",
   "repository": {
