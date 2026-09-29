@@ -141,6 +141,19 @@ napi_value isAvailable(napi_env env, napi_callback_info) {
   return promise;
 }
 
+napi_value prepareOCR(napi_env env, napi_callback_info) {
+  napi_threadsafe_function function;
+  napi_value promise = createPromise(env, nullptr, &function);
+  if (@available(macOS 27.0, *)) {
+    [AppleVisionBridge prepareOCRWithCompletion:^(NSString* value, NSString* error) {
+      complete(function, value, error);
+    }];
+  } else {
+    complete(function, nil, @"Apple Vision requires macOS 27 or later.");
+  }
+  return promise;
+}
+
 napi_value cancelAnswer(napi_env env, napi_callback_info info) {
   void* task = nullptr;
   napi_get_cb_info(env, info, nullptr, nullptr, nullptr, &task);
@@ -216,8 +229,9 @@ napi_value initialize(napi_env env, napi_value exports) {
   napi_property_descriptor properties[] = {
       {"isAvailable", nullptr, isAvailable, nullptr, nullptr, nullptr, napi_default, nullptr},
       {"respond", nullptr, respond, nullptr, nullptr, nullptr, napi_default, nullptr},
+      {"prepareOCR", nullptr, prepareOCR, nullptr, nullptr, nullptr, napi_default, nullptr},
   };
-  napi_define_properties(env, exports, 2, properties);
+  napi_define_properties(env, exports, 3, properties);
   return exports;
 }
 

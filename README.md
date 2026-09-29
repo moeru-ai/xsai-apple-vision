@@ -71,7 +71,15 @@ const provider = createAppleVisionProvider({
 })
 ```
 
-The tools are off by default. Each tool call uses part of the context window. The first OCR call in an app takes about a minute, because the system compiles the OCR models for that app once. Later calls take a few seconds.
+The tools are off by default. Each tool call uses part of the context window.
+
+The first OCR call in an app takes about a minute, because the system compiles the OCR models for that app once. Call `prepare()` in the background when the app starts, so the first image does not wait:
+
+```ts
+void provider.prepare()
+```
+
+After the models are compiled, `prepare()` returns in less than a second, and an OCR call takes a few seconds.
 
 ## Errors
 

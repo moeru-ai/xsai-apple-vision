@@ -1,6 +1,7 @@
 import Foundation
 import FoundationModels
 import ImageIO
+import Vision
 import _Vision_FoundationModels
 
 /// Delivers a JSON value or an error message to the Objective-C++ adapter.
@@ -336,6 +337,25 @@ func sessionInput(for request: RespondRequest, images: [Data], labelImages: Bool
     )
 }
 
+/// Compiles the OCR models for this app, so the first OCR tool call does not wait for it. See ADR-0016.
+///
+/// The Neural Engine runtime compiles them once for each app and system build. A blank
+/// image compiles the same three models as the OCR tool, and later calls take less than a second.
+func compileOCRModels() async throws {
+    let context = CGContext(
+        data: nil,
+        width: 16,
+        height: 16,
+        bitsPerComponent: 8,
+        bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceGray(),
+        bitmapInfo: CGImageAlphaInfo.none.rawValue
+    )!
+    context.setFillColor(gray: 1, alpha: 1)
+    context.fill(CGRect(x: 0, y: 0, width: 16, height: 16))
+    _ = try await RecognizeTextRequest().perform(on: context.makeImage()!)
+}
+
 /// Counts the tokens of the whole request with the SDK. It returns nil when counting fails.
 func tokenCount(of transcript: Transcript, and prompt: Prompt) async -> Int? {
     let model = SystemLanguageModel.default
@@ -430,6 +450,17 @@ func answer(
             do {
                 let payload = availabilityPayload(for: SystemLanguageModel.default.availability)
                 completion(try encodeJSON(payload), nil)
+            } catch {
+                completion(nil, String(describing: error) as NSString)
+            }
+        }
+    }
+
+    @objc public static func prepareOCR(completion: @escaping AppleVisionJSONCallback) {
+        Task {
+            do {
+                try await compileOCRModels()
+                completion("null", nil)
             } catch {
                 completion(nil, String(describing: error) as NSString)
             }
