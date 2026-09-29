@@ -7,9 +7,9 @@
 
 ## What it does
 
-The Apple Vision Provider is an xsAI chat provider. It sends a prompt and images to the on-device Apple Foundation Model and returns text. The model runs on the Mac. It needs no API key, no account, and no network.
+The Apple Vision Provider is an xsAI chat provider. It sends a prompt and images to the on-device Apple Foundation Model and returns text or structured output. The model runs on the Mac. It needs no API key, no account, and no network.
 
-It answers a conversation of `system`, `user`, and `assistant` messages, with images in `user` messages. It streams text with `stream: true`, and an aborted request cancels the on-device session.
+It answers a conversation of `system`, `user`, and `assistant` messages, with images in `user` messages. It returns text, or JSON that matches a schema. It streams text with `stream: true`, and an aborted request cancels the on-device session.
 
 ## Usage
 
@@ -38,6 +38,27 @@ Images are base64 data URLs in PNG, JPEG, HEIC, or WebP. The Provider does not d
 Call `provider.isAvailable()` to check the model before a request. It returns a reason code when the model cannot answer: `framework-unavailable`, `device-not-eligible`, `apple-intelligence-not-enabled`, or `model-not-ready`.
 
 Call `provider.supportsLanguage('es-MX')` to check a language before a request. `provider.supportedLanguages()` lists the languages of the model, such as `zh-Hans-CN` and `zh-Hant-TW`.
+
+### Structured output
+
+With a JSON Schema, the answer is JSON text that matches it. `generateObject` from xsAI parses it:
+
+```ts
+import { generateObject } from '@xsai/generate-object'
+
+import * as v from 'valibot'
+
+const { object } = await generateObject({
+  ...provider.chat(),
+  messages,
+  schema: v.object({
+    kind: v.picklist(['screenshot', 'illustration', 'photo']),
+    subjects: v.array(v.string()),
+  }),
+})
+```
+
+A keyword that the model cannot follow, such as `format` or `minLength`, fails with a 400 response that names it. It is not dropped. A stream with a schema sends the complete value once.
 
 ### Electron
 
@@ -87,14 +108,14 @@ After the models are compiled, `prepare()` returns in less than a second, and an
 
 A failed request returns a chat-completions error response:
 
-| Status | Code                             | Cause                                                              |
-| ------ | -------------------------------- | ------------------------------------------------------------------ |
-| 400    | `unsupported_request`            | A request part that this release does not answer, such as `tools`. |
-| 400    | `invalid_image`                  | An image that cannot be decoded.                                   |
-| 400    | `context_length_exceeded`        | The request does not fit the context window of the model.          |
-| 400    | `content_policy_violation`       | The guardrails reject the prompt, or the model refuses it.         |
-| 400    | `unsupported_language`           | The model does not support the language of the request.            |
-| 503    | An availability code, see above. | The model cannot answer now.                                       |
+| Status | Code                             | Cause                                                                                                                |
+| ------ | -------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 400    | `unsupported_request`            | A request part that this release does not answer, such as `tools`, or a schema keyword that the model cannot follow. |
+| 400    | `invalid_image`                  | An image that cannot be decoded.                                                                                     |
+| 400    | `context_length_exceeded`        | The request does not fit the context window of the model.                                                            |
+| 400    | `content_policy_violation`       | The guardrails reject the prompt, or the model refuses it.                                                           |
+| 400    | `unsupported_language`           | The model does not support the language of the request.                                                              |
+| 503    | An availability code, see above. | The model cannot answer now.                                                                                         |
 
 When the guardrails stop the output after some text, the response keeps that text with `finish_reason: "content_filter"`.
 

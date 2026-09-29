@@ -33,6 +33,33 @@ describe('translateChatRequest', () => {
   })
 })
 
+describe('translateChatRequest with response_format', () => {
+  const schema = { properties: { app: { type: 'string' } }, required: ['app'], type: 'object' }
+
+  it('passes the JSON Schema of a json_schema format', () => {
+    const request = translateChatRequest({
+      messages: [{ content: 'Describe it.', role: 'user' }],
+      model: 'system',
+      response_format: { json_schema: { name: 'screen', schema, strict: true }, type: 'json_schema' },
+    })
+
+    expect(request.schema).toEqual(schema)
+  })
+
+  it('treats a text format as no format', () => {
+    const request = translateChatRequest({ messages: [{ content: 'Hi', role: 'user' }], model: 'system', response_format: { type: 'text' } })
+    expect(request.schema).toBeUndefined()
+  })
+
+  it.each([
+    ['json_object, which has no schema', { type: 'json_object' }],
+    ['json_schema without a schema', { json_schema: { name: 'screen' }, type: 'json_schema' }],
+  ])('rejects %s', (_, format) => {
+    expect(() => translateChatRequest({ messages: [{ content: 'Hi', role: 'user' }], model: 'system', response_format: format }))
+      .toThrow('Only a response_format with type "json_schema" and a schema is supported.')
+  })
+})
+
 describe('translateChatRequest with a conversation', () => {
   it('keeps earlier turns in order with their images, and gives the last user message its own images', () => {
     const request = translateChatRequest({

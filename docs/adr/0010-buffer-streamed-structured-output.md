@@ -14,6 +14,10 @@ We rejected a 400 response for streaming with a schema. It breaks a caller that 
 
 A later release can stream partial values when a caller needs them.
 
+On macOS 27.2, two structured snapshots of one answer list the same fields in a different order, so a snapshot is not a prefix of the next one.
+
+When the guardrails stop a structured answer, the partial value does not match the schema. The Provider then returns `content_policy_violation`, not a partial answer with `content_filter`. See ADR-0012.
+
 ## Wire format
 
 A stream uses the chat-completions server-sent events:

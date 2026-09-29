@@ -62,7 +62,7 @@ export function createAppleVisionProvider(options: CreateAppleVisionProviderOpti
     async supportsLanguage(tag) {
       return JSON.parse(await resolveAddon().supportsLanguage(tag)) as boolean
     },
-    async respond({ history, images, ...request }, { onText, signal } = {}) {
+    async respond({ history, images, schema, ...request }, { onText, signal } = {}) {
       signal?.throwIfAborted()
       // The addon takes one image list: the images of each history turn in
       // order, then the prompt images. Each turn names only its image count.
@@ -72,6 +72,8 @@ export function createAppleVisionProvider(options: CreateAppleVisionProviderOpti
         builtInTools: options.builtInTools,
         history: history.map(turn => ({ imageCount: turn.images.length, role: turn.role, text: turn.text })),
         promptImageCount: images.length,
+        // Swift decodes the schema with the SDK decoder from its JSON text.
+        schemaJSON: schema && JSON.stringify(schema),
       })
       const answer = resolveAddon().respond(requestJSON, allImages.map(image => Buffer.from(image)), onText)
       const cancel = () => answer.cancel()
