@@ -42,3 +42,28 @@ jobs:
         with:
           name: native-arm64
           path: packages/vision-native/npm/darwin-arm64/apple-vision.node
+
+  electron-example:
+    name: Electron example
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build:native
+
+      - run: pnpm build
+
+      - run: CSC_IDENTITY_AUTO_DISCOVERY=false pnpm --filter @xsai-apple-vision/example-electron package
+
+      - run: test -f "examples/electron/dist/mac-arm64/xsAI Apple Vision Example.app/Contents/Resources/app.asar"
+
+      - run: find examples/electron/dist -path '*app.asar.unpacked*' -name '*.node' -print -quit | grep .
