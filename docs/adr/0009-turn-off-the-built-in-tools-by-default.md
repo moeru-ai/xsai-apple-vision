@@ -38,6 +38,16 @@ The model scales every image down to a fixed size of about 200 tokens. So small 
 
 The model also calls the OCR tool for an image without text, such as an illustration. That call adds little latency, and the answer then says that the image has no text instead of inventing some.
 
+The barcode tool was measured with a 1400×700 image that holds a QR code of a URL and a Code 128 barcode of an order number:
+
+| Measure               | Tools off                         | Barcode on                    |
+| --------------------- | --------------------------------- | ----------------------------- |
+| Values read correctly | 0 of 2, the model invents numbers | 2 of 2, in every run          |
+| Prompt tokens         | about 200                         | about 610, about 790 with OCR |
+| Latency               | about 4 s                         | 3 to 6 s                      |
+
+The barcode tool has no long first call. Its first call in a new app took about 6 seconds.
+
 ## First use in each app
 
 The first OCR call of an app takes 60 to 80 seconds. The Neural Engine runtime then compiles the three OCR models for that app, about 30 seconds each. Later calls take about 4 seconds, also in a new process and after hours of idle time.
