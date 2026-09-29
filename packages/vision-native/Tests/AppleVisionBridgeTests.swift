@@ -178,9 +178,11 @@ struct SupportedLanguageTests {
     }
 }
 
+/// Each object has `x-order`, as the TypeScript Provider sends it. The macOS 27.0 SDK
+/// does not decode an object without it.
 struct GenerationSchemaTests {
     private func schema(_ property: String) -> String {
-        #"{"type":"object","properties":{"a":"# + property + #"},"required":["a"]}"#
+        #"{"type":"object","properties":{"a":"# + property + #"},"required":["a"],"x-order":["a"]}"#
     }
 
     @Test func acceptsTheKeywordsThatTheSDKGuides() throws {
@@ -190,7 +192,7 @@ struct GenerationSchemaTests {
     }
 
     @Test func ignoresDroppedAnnotations() throws {
-        _ = try generationSchema(fromJSON: #"{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"a":{"type":"string","default":"x","examples":["y"]}},"required":["a"]}"#)
+        _ = try generationSchema(fromJSON: #"{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"a":{"type":"string","default":"x","examples":["y"]}},"required":["a"],"x-order":["a"]}"#)
     }
 
     @Test(arguments: [
@@ -205,10 +207,10 @@ struct GenerationSchemaTests {
     }
 
     @Test(arguments: [
-        #"{"type":"object","properties":{"note":{"anyOf":[{"type":"string"},{"type":"null"}]}},"required":["note"]}"#,
-        #"{"type":"object","properties":{"value":{"anyOf":[{"type":"string"},{"type":"number"}]}},"required":["value"]}"#,
-        #"{"type":"object","properties":{"a":{"anyOf":[{"type":"string"},{"type":"null"}]},"b":{"anyOf":[{"type":"integer"},{"type":"null"}]}},"required":["a","b"]}"#,
-        #"{"type":"object","properties":{"shape":{"anyOf":[{"type":"object","properties":{"r":{"type":"number"}},"required":["r"]},{"type":"object","properties":{"w":{"type":"number"}},"required":["w"]}]}},"required":["shape"]}"#,
+        #"{"type":"object","properties":{"note":{"anyOf":[{"type":"string"},{"type":"null"}]}},"required":["note"],"x-order":["note"]}"#,
+        #"{"type":"object","properties":{"value":{"anyOf":[{"type":"string"},{"type":"number"}]}},"required":["value"],"x-order":["value"]}"#,
+        #"{"type":"object","properties":{"a":{"anyOf":[{"type":"string"},{"type":"null"}]},"b":{"anyOf":[{"type":"integer"},{"type":"null"}]}},"required":["a","b"],"x-order":["a","b"]}"#,
+        #"{"type":"object","properties":{"shape":{"anyOf":[{"type":"object","properties":{"r":{"type":"number"}},"required":["r"],"x-order":["r"]},{"type":"object","properties":{"w":{"type":"number"}},"required":["w"],"x-order":["w"]}]}},"required":["shape"],"x-order":["shape"]}"#,
     ])
     func keepsEachChoiceOfAnAnyOfWithoutATitle(json: String) throws {
         _ = try generationSchema(fromJSON: json)
@@ -216,7 +218,7 @@ struct GenerationSchemaTests {
 
     @Test func rejectsTwoChoicesThatTheSDKMergesByTitle() {
         #expect(throws: SchemaError.self) {
-            try generationSchema(fromJSON: #"{"type":"object","properties":{"a":{"title":"Choice","anyOf":[{"type":"string"},{"type":"null"}]},"b":{"title":"Choice","anyOf":[{"type":"integer"},{"type":"null"}]}},"required":["a","b"]}"#)
+            try generationSchema(fromJSON: #"{"type":"object","properties":{"a":{"title":"Choice","anyOf":[{"type":"string"},{"type":"null"}]},"b":{"title":"Choice","anyOf":[{"type":"integer"},{"type":"null"}]}},"required":["a","b"],"x-order":["a","b"]}"#)
         }
     }
 

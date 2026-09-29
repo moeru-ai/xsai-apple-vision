@@ -34,6 +34,35 @@ export interface NativeAppleVisionProvider extends AppleVisionProvider {
 
 const require = createRequire(import.meta.url)
 
+function isSchemaObject(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+}
+
+/**
+ * Adds `x-order` to each object schema, with its properties in the caller's order.
+ *
+ * The macOS 27.0 SDK decodes an object schema only with `x-order`. The caller's
+ * order is the natural value, and only JavaScript keeps it: Swift loses the key
+ * order when it parses the JSON. See ADR-0005.
+ */
+export function withPropertyOrder(schema: Record<string, unknown>): Record<string, unknown> {
+  const ordered: Record<string, unknown> = { ...schema }
+  if (isSchemaObject(schema.properties)) {
+    ordered.properties = Object.fromEntries(Object.entries(schema.properties)
+      .map(([name, property]) => [name, isSchemaObject(property) ? withPropertyOrder(property) : property]))
+    ordered['x-order'] ??= Object.keys(schema.properties)
+  }
+  if (isSchemaObject(schema.items))
+    ordered.items = withPropertyOrder(schema.items)
+  if (Array.isArray(schema.anyOf))
+    ordered.anyOf = schema.anyOf.map(choice => isSchemaObject(choice) ? withPropertyOrder(choice) : choice)
+  if (isSchemaObject(schema.$defs)) {
+    ordered.$defs = Object.fromEntries(Object.entries(schema.$defs)
+      .map(([name, definition]) => [name, isSchemaObject(definition) ? withPropertyOrder(definition) : definition]))
+  }
+  return ordered
+}
+
 function loadNativeAddon(): RawNativeAddon {
   return require(`@xsai-apple-vision/vision-native-darwin-${arch}`) as RawNativeAddon
 }
@@ -73,7 +102,7 @@ export function createAppleVisionProvider(options: CreateAppleVisionProviderOpti
         history: history.map(turn => ({ imageCount: turn.images.length, role: turn.role, text: turn.text })),
         promptImageCount: images.length,
         // Swift decodes the schema with the SDK decoder from its JSON text.
-        schemaJSON: schema && JSON.stringify(schema),
+        schemaJSON: schema && JSON.stringify(withPropertyOrder(schema)),
       })
       const answer = resolveAddon().respond(requestJSON, allImages.map(image => Buffer.from(image)), onText)
       const cancel = () => answer.cancel()

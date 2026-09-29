@@ -8,6 +8,12 @@ A request with `response_format: { type: 'json_schema' }` returns structured out
 
 The Swift module decodes the JSON Schema with the SDK decoder: `GenerationSchema` is `Decodable` from JSON Schema. Guided generation then keeps the model output inside the schema. We rejected a converter of our own to `DynamicGenerationSchema`. The SDK decoder already covers more of JSON Schema than a converter would, and it changes with the SDK.
 
+## Property order
+
+The macOS 27.0 SDK decodes an object schema only when it has `x-order`, the SDK list of its property names. The macOS 27.2 SDK does not need it. So the native Provider adds `x-order` to each object schema before it sends the schema to Swift. It lists the properties in the caller's order, because only JavaScript keeps the key order of the JSON.
+
+The key order of the JSON answer does not follow `x-order`. On macOS 27.2, a schema with the order `zebra`, `apple`, `mango` returned `mango`, `zebra`, `apple`.
+
 ## Keywords that the SDK drops
 
 The SDK decoder drops some keywords without an error. The output then does not follow them, and the caller does not know. So the Swift module encodes the decoded schema again, resolves its `$ref` values, and checks that each keyword of the request schema is still there with the same value. A dropped or changed keyword fails the request with a 400 `unsupported_request` response that names the keyword and its location, for example `The "format" keyword at properties.email is not supported.`
