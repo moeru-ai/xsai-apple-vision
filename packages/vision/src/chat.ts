@@ -20,6 +20,8 @@ export interface AppleVisionRespondRequest {
   images: Uint8Array[]
   temperature?: number
   maximumResponseTokens?: number
+  /** The JSON Schema of `response_format`. The answer is then JSON text that matches it. See ADR-0005. */
+  schema?: Record<string, unknown>
 }
 
 export interface AppleVisionAnswer {
@@ -44,7 +46,7 @@ export type AppleVisionRespondFailure
     tokenCount?: number
   }
   | {
-    code: 'content_policy_violation' | 'unsupported_language' | 'invalid_image'
+    code: 'content_policy_violation' | 'unsupported_language' | 'invalid_image' | 'unsupported_request'
     message: string
   }
 
@@ -88,7 +90,7 @@ export const APPLE_VISION_MODEL = 'system'
 const BASE_URL = 'http://apple-vision.invalid/v1/'
 
 /** The request fields that this release answers. Any other field fails. See ADR-0002. */
-const SUPPORTED_FIELDS = new Set(['model', 'messages', 'stream', 'stream_options', 'temperature', 'max_tokens', 'max_completion_tokens'])
+const SUPPORTED_FIELDS = new Set(['model', 'messages', 'stream', 'stream_options', 'temperature', 'max_tokens', 'max_completion_tokens', 'response_format'])
 
 const DATA_URL = /^data:image\/(?:png|jpeg|heic|webp);base64,(.+)$/s
 
@@ -223,6 +225,15 @@ export function translateChatRequest(body: Record<string, unknown>): AppleVision
   const maximumResponseTokens = body.max_completion_tokens ?? body.max_tokens
   if (typeof maximumResponseTokens === 'number')
     request.maximumResponseTokens = maximumResponseTokens
+
+  const format = body.response_format as { type?: unknown, json_schema?: { schema?: unknown } } | undefined
+  if (format != null && format.type !== 'text') {
+    const schema = format.json_schema?.schema
+    // `json_object` has no schema, so nothing guides the output to valid JSON.
+    if (format.type !== 'json_schema' || schema == null || typeof schema !== 'object')
+      unsupported('Only a response_format with type "json_schema" and a schema is supported.')
+    request.schema = schema as Record<string, unknown>
+  }
   return request
 }
 

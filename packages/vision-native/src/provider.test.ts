@@ -141,4 +141,16 @@ describe('createAppleVisionProvider', () => {
     await expect(provider.supportsLanguage('es-MX')).resolves.toBe(true)
     await expect(provider.supportsLanguage('th')).resolves.toBe(false)
   })
+
+  it('sends the schema to the addon as JSON text', async () => {
+    const respond = vi.fn((_requestJSON: string, _images: Buffer[]) => answer('{"answer":{"text":"{}","finishReason":"stop"}}'))
+    const provider = createAppleVisionProvider({ addon: { isAvailable: vi.fn(), prepareOCR: vi.fn(), respond, supportedLanguages: vi.fn(), supportsLanguage: vi.fn() } })
+    const schema = { properties: { app: { type: 'string' } }, type: 'object' }
+
+    await provider.respond({ history: [], images: [], prompt: 'Describe it.', schema })
+
+    const request = JSON.parse(respond.mock.calls[0]![0])
+    expect(request.schema).toBeUndefined()
+    expect(JSON.parse(request.schemaJSON)).toEqual(schema)
+  })
 })

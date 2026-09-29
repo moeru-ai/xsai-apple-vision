@@ -98,6 +98,8 @@ struct RespondRequest: Decodable {
     let temperature: Double?
     let maximumResponseTokens: Int?
     let builtInTools: BuiltInTools?
+    /// The JSON Schema of `response_format`, as JSON text. See ADR-0005.
+    let schemaJSON: String?
 }
 
 /// The answer that the TypeScript Provider turns into a chat-completions response.
@@ -261,6 +263,73 @@ enum AppleVisionBridgeError: Error, CustomStringConvertible, Equatable {
     }
 }
 
+/// Keywords that only annotate a schema. The SDK drops them, which does not change the output.
+let annotationKeywords: Set<String> = ["$schema", "$id", "$comment", "default", "examples", "deprecated", "readOnly", "writeOnly"]
+
+/// Keywords whose value is data, not a schema. Their contents are not keywords.
+let valueKeywords: Set<String> = ["enum", "const", "required", "default", "examples", "x-order"]
+
+/// Lists the keyword paths of a JSON Schema, such as `properties.name.format`.
+func keywordPaths(of value: Any, at path: [String] = []) -> Set<[String]> {
+    var paths = Set<[String]>()
+    if let object = value as? [String: Any] {
+        for (key, child) in object {
+            // The members of `properties` and `$defs` are names, not keywords.
+            let namesSchemas = key == "properties" || key == "$defs"
+            if !namesSchemas {
+                paths.insert(path + [key])
+            }
+            if valueKeywords.contains(key) {
+                continue
+            }
+            if namesSchemas, let members = child as? [String: Any] {
+                for (name, schema) in members {
+                    paths.formUnion(keywordPaths(of: schema, at: path + [key, name]))
+                }
+            } else {
+                paths.formUnion(keywordPaths(of: child, at: path + [key]))
+            }
+        }
+    } else if let array = value as? [Any] {
+        for (index, child) in array.enumerated() {
+            paths.formUnion(keywordPaths(of: child, at: path + [String(index)]))
+        }
+    }
+    return paths
+}
+
+/// Decodes a JSON Schema with the SDK decoder. See ADR-0005.
+///
+/// The SDK decoder drops keywords that it cannot guide, such as `format` or
+/// `minLength`, without an error. The output then does not match what the caller
+/// asked for, so a dropped keyword fails, except an annotation.
+func generationSchema(fromJSON json: String) throws(SchemaError) -> GenerationSchema {
+    let data = Data(json.utf8)
+    let schema: GenerationSchema
+    let input: Any
+    let output: Any
+    do {
+        schema = try JSONDecoder().decode(GenerationSchema.self, from: data)
+        input = try JSONSerialization.jsonObject(with: data)
+        output = try JSONSerialization.jsonObject(with: JSONEncoder().encode(schema))
+    } catch {
+        throw SchemaError(message: "The JSON Schema is not supported: \(error)")
+    }
+    let dropped = keywordPaths(of: input)
+        .subtracting(keywordPaths(of: output))
+        .filter { !annotationKeywords.contains($0.last!) }
+        .sorted { $0.joined(separator: ".") < $1.joined(separator: ".") }
+    if let first = dropped.first {
+        let location = first.dropLast().joined(separator: ".")
+        throw SchemaError(message: "The \"\(first.last!)\" keyword\(location.isEmpty ? "" : " at \(location)") is not supported.")
+    }
+    return schema
+}
+
+struct SchemaError: Error, Equatable {
+    let message: String
+}
+
 /// Decodes one image with Image I/O. See ADR-0006.
 func decodeImage(_ data: Data, index: Int) throws -> CGImage {
     guard
@@ -386,6 +455,14 @@ func answer(
     onSnapshot: (String) -> Void = { _ in }
 ) async throws -> RespondOutcome {
     let tools = request.builtInTools?.tools ?? []
+    var schema: GenerationSchema?
+    if let schemaJSON = request.schemaJSON {
+        do {
+            schema = try generationSchema(fromJSON: schemaJSON)
+        } catch {
+            return RespondOutcome(failure: FailurePayload(code: "unsupported_request", message: error.message))
+        }
+    }
     let input: SessionInput
     do {
         input = try sessionInput(for: request, images: images, labelImages: !tools.isEmpty)
@@ -415,10 +492,19 @@ func answer(
     var text = ""
     var usage: RespondPayload.Usage?
     do {
-        for try await snapshot in session.streamResponse(to: prompt, options: options) {
-            text = snapshot.content
-            usage = RespondPayload.Usage(snapshot.usage)
-            onSnapshot(text)
+        if let schema {
+            // A structured snapshot is not a prefix of the next one, so the
+            // answer sends only the complete value. See ADR-0010.
+            for try await snapshot in session.streamResponse(to: prompt, schema: schema, options: options) {
+                text = snapshot.rawContent.jsonString
+                usage = RespondPayload.Usage(snapshot.usage)
+            }
+        } else {
+            for try await snapshot in session.streamResponse(to: prompt, options: options) {
+                text = snapshot.content
+                usage = RespondPayload.Usage(snapshot.usage)
+                onSnapshot(text)
+            }
         }
         // A cancelled stream ends without an error on macOS 27.2. Without this
         // check, a cancelled answer returns its partial text as a normal answer.
@@ -433,7 +519,8 @@ func answer(
                 tokenCount: await tokenCount(of: input.transcript, and: prompt)
             )
         }
-        return outcome(for: failure, partialText: text, usage: usage, imageSizes: input.imageSizes)
+        // A partial structured value does not match the schema, so it is not an answer.
+        return outcome(for: failure, partialText: schema == nil ? text : "", usage: usage, imageSizes: input.imageSizes)
     }
     return RespondOutcome(answer: RespondPayload(text: text, finishReason: "stop", usage: usage))
 }

@@ -30,7 +30,8 @@ struct SessionInputTests {
             promptImageCount: promptImageCount,
             temperature: nil,
             maximumResponseTokens: nil,
-            builtInTools: nil
+            builtInTools: nil,
+            schemaJSON: nil
         )
     }
 
@@ -174,5 +175,38 @@ struct SupportedLanguageTests {
             Locale.Language(identifier: "en-US"),
         ])
         #expect(identifiers == ["en-Latn-US", "zh-Hans-CN", "zh-Hant-TW"])
+    }
+}
+
+struct GenerationSchemaTests {
+    private func schema(_ property: String) -> String {
+        #"{"type":"object","properties":{"a":"# + property + #"},"required":["a"]}"#
+    }
+
+    @Test func acceptsTheKeywordsThatTheSDKGuides() throws {
+        _ = try generationSchema(fromJSON: schema(#"{"type":"string","enum":["x","y"],"description":"A value"}"#))
+        _ = try generationSchema(fromJSON: schema(#"{"type":"array","items":{"type":"integer","minimum":1,"maximum":5},"minItems":1,"maxItems":3}"#))
+        _ = try generationSchema(fromJSON: schema(#"{"type":"string","pattern":"^[a-z]+$"}"#))
+    }
+
+    @Test func ignoresDroppedAnnotations() throws {
+        _ = try generationSchema(fromJSON: #"{"$schema":"http://json-schema.org/draft-07/schema#","type":"object","properties":{"a":{"type":"string","default":"x","examples":["y"]}},"required":["a"]}"#)
+    }
+
+    @Test(arguments: [
+        (#"{"type":"string","format":"email"}"#, #"The "format" keyword at properties.a is not supported."#),
+        (#"{"type":"string","minLength":2}"#, #"The "minLength" keyword at properties.a is not supported."#),
+        (#"{"type":"integer","multipleOf":5}"#, #"The "multipleOf" keyword at properties.a is not supported."#),
+    ])
+    func rejectsAKeywordThatTheSDKDrops(property: String, message: String) {
+        #expect(throws: SchemaError(message: message)) {
+            try generationSchema(fromJSON: schema(property))
+        }
+    }
+
+    @Test func rejectsASchemaThatTheSDKCannotDecode() {
+        #expect(throws: SchemaError.self) {
+            try generationSchema(fromJSON: schema(#"{"oneOf":[{"type":"string"},{"type":"integer"}]}"#))
+        }
     }
 }
