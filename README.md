@@ -86,7 +86,7 @@ const provider = createAppleVisionProvider({ context: eventa.context })
 
 ### Reading small text
 
-The model scales each image down to a fixed size. Small text in a large screenshot then becomes unreadable, and the model guesses. Turn on the built-in OCR tool to read it:
+The model scales each image down to a fixed size, so a larger image does not add detail. Small text in a large screenshot then becomes unreadable, and the model guesses. Crop the region that holds the text, or turn on the built-in OCR tool when you do not know where the text is:
 
 ```ts
 const provider = createAppleVisionProvider({
