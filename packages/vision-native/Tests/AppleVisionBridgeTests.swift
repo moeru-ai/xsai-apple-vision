@@ -216,6 +216,32 @@ struct GenerationSchemaTests {
         _ = try generationSchema(fromJSON: json)
     }
 
+    @Test func completesEachObjectToTheFormThatTheMacOS27_0SDKDecodes() throws {
+        let input = try JSONSerialization.jsonObject(with: Data(#"{"type":"object","properties":{"list":{"type":"array","items":{"type":"object","properties":{"n":{"type":"string"}},"x-order":["n"]}},"shape":{"anyOf":[{"type":"object","properties":{"r":{"type":"number"}},"x-order":["r"]},{"type":"null"}]},"list 2":{"type":"object","properties":{"m":{"type":"string"}},"required":["m"],"x-order":["m"]}},"x-order":["list","shape","list 2"]}"#.utf8))
+
+        var titles: [String] = []
+        func check(_ value: Any) {
+            if let object = value as? [String: Any] {
+                if object["properties"] != nil {
+                    #expect(object["additionalProperties"] as? Bool == false)
+                    #expect(object["required"] is [String])
+                }
+                if object["properties"] != nil || object["anyOf"] != nil {
+                    #expect(object["title"] is String)
+                    titles.append(object["title"] as? String ?? "")
+                }
+                object.forEach { if !valueKeywords.contains($0.key) { check($0.value) } }
+            } else if let array = value as? [Any] {
+                array.forEach(check)
+            }
+        }
+        let completed = completedForTheSDK(input)
+        check(completed)
+        #expect(titles.count == 5)
+        #expect(Set(titles).count == titles.count)
+        #expect(((completed as? [String: Any])?["properties"] as? [String: Any])?["list 2"].flatMap { ($0 as? [String: Any])?["required"] as? [String] } == ["m"])
+    }
+
     @Test func rejectsTwoChoicesThatTheSDKMergesByTitle() {
         #expect(throws: SchemaError.self) {
             try generationSchema(fromJSON: #"{"type":"object","properties":{"a":{"title":"Choice","anyOf":[{"type":"string"},{"type":"null"}]},"b":{"title":"Choice","anyOf":[{"type":"integer"},{"type":"null"}]}},"required":["a","b"],"x-order":["a","b"]}"#)
