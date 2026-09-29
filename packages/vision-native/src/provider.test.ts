@@ -14,6 +14,8 @@ describe('createAppleVisionProvider', () => {
       addon: {
         isAvailable: async () => '{"available":false,"reason":{"code":"model-not-ready","message":"Downloading."}}',
         prepareOCR: vi.fn(),
+        supportedLanguages: vi.fn(),
+        supportsLanguage: vi.fn(),
         respond: vi.fn(),
       },
     })
@@ -26,7 +28,7 @@ describe('createAppleVisionProvider', () => {
 
   it('sends the history images in order, then the prompt images, with a count for each turn', async () => {
     const respond = vi.fn((_requestJSON: string, _images: Buffer[]) => answer('{"answer":{"text":"ok","finishReason":"stop","usage":{"promptTokens":1,"completionTokens":1}}}'))
-    const provider = createAppleVisionProvider({ addon: { isAvailable: async () => '{"available":true}', prepareOCR: vi.fn(), respond } })
+    const provider = createAppleVisionProvider({ addon: { isAvailable: async () => '{"available":true}', prepareOCR: vi.fn(), supportedLanguages: vi.fn(), supportsLanguage: vi.fn(), respond } })
     const image = (byte: number) => Uint8Array.from([byte])
 
     await provider.chat().fetch('http://apple-vision.invalid/v1/chat/completions', {
@@ -55,6 +57,8 @@ describe('createAppleVisionProvider', () => {
       addon: {
         isAvailable: async () => '{"available":true}',
         prepareOCR: vi.fn(),
+        supportedLanguages: vi.fn(),
+        supportsLanguage: vi.fn(),
         respond: (_requestJSON, _images, onSnapshot) => {
           onSnapshot?.('A')
           onSnapshot?.('A menu.')
@@ -75,7 +79,7 @@ describe('createAppleVisionProvider', () => {
 
   it('does not call the addon until the first operation', async () => {
     const isAvailable = vi.fn(async () => '{"available":true}')
-    const provider = createAppleVisionProvider({ addon: { isAvailable, prepareOCR: vi.fn(), respond: vi.fn() } })
+    const provider = createAppleVisionProvider({ addon: { isAvailable, prepareOCR: vi.fn(), supportedLanguages: vi.fn(), supportsLanguage: vi.fn(), respond: vi.fn() } })
     expect(isAvailable).not.toHaveBeenCalled()
 
     await provider.isAvailable()
@@ -89,6 +93,8 @@ describe('createAppleVisionProvider', () => {
       addon: {
         isAvailable: async () => '{"available":true}',
         prepareOCR: vi.fn(),
+        supportedLanguages: vi.fn(),
+        supportsLanguage: vi.fn(),
         respond: () => ({ cancel, result: new Promise<string>((_, reject) => { rejectResult = reject }) }),
       },
     })
@@ -106,7 +112,7 @@ describe('createAppleVisionProvider', () => {
   it('sends the built-in tools of the Provider with every request', async () => {
     const respond = vi.fn((_requestJSON: string, _images: Buffer[]) => answer('{"answer":{"text":"ok","finishReason":"stop"}}'))
     const provider = createAppleVisionProvider({
-      addon: { isAvailable: async () => '{"available":true}', prepareOCR: vi.fn(), respond },
+      addon: { isAvailable: async () => '{"available":true}', prepareOCR: vi.fn(), supportedLanguages: vi.fn(), supportsLanguage: vi.fn(), respond },
       builtInTools: { ocr: true },
     })
 
@@ -117,12 +123,22 @@ describe('createAppleVisionProvider', () => {
 
   it('compiles the OCR models in prepare only when OCR is on', async () => {
     const prepareOCR = vi.fn(async () => 'null')
-    const addon = { isAvailable: vi.fn(), prepareOCR, respond: vi.fn() }
+    const addon = { isAvailable: vi.fn(), prepareOCR, respond: vi.fn(), supportedLanguages: vi.fn(), supportsLanguage: vi.fn() }
 
     await createAppleVisionProvider({ addon }).prepare()
     expect(prepareOCR).not.toHaveBeenCalled()
 
     await createAppleVisionProvider({ addon, builtInTools: { ocr: true } }).prepare()
     expect(prepareOCR).toHaveBeenCalledOnce()
+  })
+
+  it('parses the supported languages that the addon reports', async () => {
+    const provider = createAppleVisionProvider({
+      addon: { isAvailable: vi.fn(), prepareOCR: vi.fn(), respond: vi.fn(), supportedLanguages: async () => '["en-Latn-US","zh-Hans-CN"]', supportsLanguage: async (tag: string) => String(tag === 'es-MX') },
+    })
+
+    await expect(provider.supportedLanguages()).resolves.toEqual(['en-Latn-US', 'zh-Hans-CN'])
+    await expect(provider.supportsLanguage('es-MX')).resolves.toBe(true)
+    await expect(provider.supportsLanguage('th')).resolves.toBe(false)
   })
 })

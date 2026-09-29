@@ -154,6 +154,43 @@ napi_value prepareOCR(napi_env env, napi_callback_info) {
   return promise;
 }
 
+napi_value supportedLanguages(napi_env env, napi_callback_info) {
+  napi_threadsafe_function function;
+  napi_value promise = createPromise(env, nullptr, &function);
+  if (@available(macOS 27.0, *)) {
+    [AppleVisionBridge supportedLanguagesWithCompletion:^(NSString* value, NSString* error) {
+      complete(function, value, error);
+    }];
+  } else {
+    complete(function, @"[]", nil);
+  }
+  return promise;
+}
+
+napi_value supportsLanguage(napi_env env, napi_callback_info info) {
+  size_t argumentCount = 1;
+  napi_value argument;
+  napi_get_cb_info(env, info, &argumentCount, &argument, nullptr, nullptr);
+  std::string identifier;
+  if (argumentCount != 1 || !readString(env, argument, identifier)) {
+    napi_throw_type_error(env, nullptr, "supportsLanguage expects a language identifier.");
+    return nullptr;
+  }
+
+  napi_threadsafe_function function;
+  napi_value promise = createPromise(env, nullptr, &function);
+  if (@available(macOS 27.0, *)) {
+    [AppleVisionBridge
+        supportsLanguageWithIdentifier:[NSString stringWithUTF8String:identifier.c_str()]
+                            completion:^(NSString* value, NSString* error) {
+                              complete(function, value, error);
+                            }];
+  } else {
+    complete(function, @"false", nil);
+  }
+  return promise;
+}
+
 napi_value cancelAnswer(napi_env env, napi_callback_info info) {
   void* task = nullptr;
   napi_get_cb_info(env, info, nullptr, nullptr, nullptr, &task);
@@ -230,8 +267,10 @@ napi_value initialize(napi_env env, napi_value exports) {
       {"isAvailable", nullptr, isAvailable, nullptr, nullptr, nullptr, napi_default, nullptr},
       {"respond", nullptr, respond, nullptr, nullptr, nullptr, napi_default, nullptr},
       {"prepareOCR", nullptr, prepareOCR, nullptr, nullptr, nullptr, napi_default, nullptr},
+      {"supportedLanguages", nullptr, supportedLanguages, nullptr, nullptr, nullptr, napi_default, nullptr},
+      {"supportsLanguage", nullptr, supportsLanguage, nullptr, nullptr, nullptr, napi_default, nullptr},
   };
-  napi_define_properties(env, exports, 3, properties);
+  napi_define_properties(env, exports, 5, properties);
   return exports;
 }
 

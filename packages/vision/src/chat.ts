@@ -65,6 +65,13 @@ export interface AppleVisionOperations {
   /** Reports whether the on-device model can answer now. It does not throw for an unavailable model. */
   isAvailable: () => Promise<AppleVisionAvailability>
   respond: (request: AppleVisionRespondRequest, options?: AppleVisionRespondOptions) => Promise<AppleVisionRespondResult>
+  /** Lists the languages of the model as maximal BCP 47 identifiers, such as `zh-Hans-CN`. See ADR-0012. */
+  supportedLanguages: () => Promise<string[]>
+  /**
+   * Checks one BCP 47 language tag with the SDK match. A regional variant of a
+   * listed language, such as `es-MX` for `es-Latn-419`, is supported. See ADR-0012.
+   */
+  supportsLanguage: (tag: string) => Promise<boolean>
 }
 
 /** The request options that `chat(model)` returns. They fit xsAI `generateText`. */

@@ -15,6 +15,14 @@ export const appleVisionIsAvailable = defineInvokeEventa<AppleVisionAvailability
   'xsai-apple-vision:vision:is-available',
 )
 
+export const appleVisionSupportedLanguages = defineInvokeEventa<string[]>(
+  'xsai-apple-vision:vision:supported-languages',
+)
+
+export const appleVisionSupportsLanguage = defineInvokeEventa<boolean, string>(
+  'xsai-apple-vision:vision:supports-language',
+)
+
 export const appleVisionRespond = defineInvokeEventa<AppleVisionRespondEvent, AppleVisionRespondRequest>(
   'xsai-apple-vision:vision:respond',
 )

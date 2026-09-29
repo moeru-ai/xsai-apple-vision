@@ -14,5 +14,7 @@ export function createAppleVisionProvider(operations: AppleVisionOperations): Ap
     chat: model => createChatRequestOptions(operations, model),
     isAvailable: operations.isAvailable,
     respond: operations.respond,
+    supportedLanguages: operations.supportedLanguages,
+    supportsLanguage: operations.supportsLanguage,
   }
 }

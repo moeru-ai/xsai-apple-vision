@@ -4,7 +4,7 @@ import type { AppleVisionProvider } from '@xsai-apple-vision/vision'
 import { defineInvoke, defineStreamInvoke } from '@moeru/eventa'
 import { createAppleVisionProvider as createSharedAppleVisionProvider } from '@xsai-apple-vision/vision'
 
-import { appleVisionIsAvailable, appleVisionRespond } from './events'
+import { appleVisionIsAvailable, appleVisionRespond, appleVisionSupportedLanguages, appleVisionSupportsLanguage } from './events'
 
 /**
  * Creates an Apple Vision Provider for an Electron renderer Eventa context.
@@ -17,9 +17,13 @@ export function createAppleVisionProvider<EmitOptions>(options: {
 }): AppleVisionProvider {
   const invokeAvailability = defineInvoke(options.context, appleVisionIsAvailable)
   const invokeRespond = defineStreamInvoke(options.context, appleVisionRespond)
+  const invokeSupportedLanguages = defineInvoke(options.context, appleVisionSupportedLanguages)
+  const invokeSupportsLanguage = defineInvoke(options.context, appleVisionSupportsLanguage)
 
   return createSharedAppleVisionProvider({
     isAvailable: () => invokeAvailability(),
+    supportedLanguages: () => invokeSupportedLanguages(),
+    supportsLanguage: tag => invokeSupportsLanguage(tag),
     async respond(request, { onText, signal } = {}) {
       signal?.throwIfAborted()
       try {
